@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Customer Dashboard</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<style>
+body{
+font-family:Arial;
+background:linear-gradient(135deg,#0f172a,#1e293b);
+color:white;
+margin:0;
+text-align:center;
+}
+
+.container{
+max-width:400px;
+margin:40px auto;
+background:white;
+color:black;
+padding:25px;
+border-radius:15px;
+box-shadow:0 10px 30px rgba(0,0,0,0.3);
+}
+
+input,select{
+width:90%;
+padding:10px;
+margin:10px;
+border-radius:6px;
+border:1px solid #ccc;
+}
+
+button{
+padding:12px;
+width:90%;
+background:#f59e0b;
+color:white;
+border:none;
+border-radius:8px;
+cursor:pointer;
+font-weight:bold;
+}
+
+.order{
+background:white;
+color:black;
+padding:15px;
+margin:10px auto;
+border-radius:10px;
+width:60%;
+box-shadow:0 4px 10px rgba(0,0,0,0.1);
+font-weight:bold;
+}
+</style>
+
+
+</head>
+
+<body>
+
+<h2>🚚 Book Your Lorry</h2>
+
+<div class="container">
+<div id="map" style="height:300px; margin:20px;"></div>
+<input id="pickup" placeholder="Pickup Location">
+<input id="drop" placeholder="Drop Location">
+
+<select id="load">
+    <optgroup label="🏗️ Construction Materials">
+        <option>Sand</option>
+        <option>Bricks</option>
+        <option>Cement</option>
+        <option>Steel</option>
+    </optgroup>
+
+    <optgroup label="🚢 Container Loads">
+        <option>20ft Container</option>
+        <option>40ft Container</option>
+        <option>Refrigerated Container</option>
+        <option>Liquid Tank Container</option>
+    </optgroup>
+
+    <optgroup label="🏭 Industrial Materials">
+        <option>Machinery</option>
+        <option>Chemicals</option>
+        <option>Scrap Metal</option>
+    </optgroup>
+
+    <optgroup label="📦 General Goods">
+        <option>Furniture</option>
+        <option>Electronics</option>
+        <option>Other</option>
+    </optgroup>
+</select>
+
+<select id="lorryType">
+    <option>6 Wheel Lorry</option>
+    <option>10 Wheel Lorry</option>
+    <option>12 Wheel Lorry</option>
+    <option>Container Truck</option>
+    <option>6 wheel lorry Container Truck</option>
+    <option>10 wheel lorry Container Truck</option>
+    <option>12 wheel lorry Container Truck</option>
+    <option>16 wheel lorry Container Truck</option>
+</select>
+
+<input id="weight" placeholder="Weight (kg)">
+<input id="distance" placeholder="Distance (km)">
+
+<button onclick="book()">Book Lorry</button>
+
+</div>
+
+<h3>Your Orders</h3>
+
+
+<div id="myOrders">Loading...</div>
+
+<script>
+
+// ✅ BOOK ORDER
+function book(){
+
+const pickup = document.getElementById("pickup").value.trim();
+const drop = document.getElementById("drop").value.trim();
+
+if(!pickup || !drop){
+alert("Enter pickup & drop ❌");
+return;
+}
+
+fetch("http://localhost:5000/create_order", {
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body: JSON.stringify({
+pickup,
+drop,
+load:document.getElementById("load").value,
+lorry_type: document.getElementById("lorryType").value,
+weight:document.getElementById("weight").value,
+distance:document.getElementById("distance").value,
+
+customer_id: localStorage.getItem("user_id"),
+customer_name: localStorage.getItem("user_name"),
+customer_phone: localStorage.getItem("user_phone")
+
+})
+})
+.then(res=>res.json())
+.then(()=>{
+alert("Order Sent 🚚");
+loadOrders();
+})
+.catch(()=>{
+alert("Server error ❌");
+});
+
+}
+
+// ✅ LOAD ORDERS
+function loadOrders(){
+
+fetch("http://localhost:5000/orders")
+.then(res=>res.json())
+.then(data=>{
+
+const div=document.getElementById("myOrders");
+div.innerHTML="";
+
+if(!data || data.length === 0){
+div.innerHTML = "<p>No orders yet 🚚</p>";
+return;
+}
+
+data.forEach(o=>{
+
+let statusText = "";
+let statusColor = "";
+let driverInfo = "";
+
+// STATUS
+if(o.status === "accepted"){
+statusText = "✅ Driver Accepted";
+statusColor = "green";
+
+/* ✅ FIXED MAP */
+if(o.driver_lat && o.driver_lng){
+    updateMap(o.driver_lat, o.driver_lng);
+}
+
+driverInfo = `
+<p><b>Driver:</b> ${o.driver_name || "Not available"}</p>
+<p><b>Phone:</b> ${o.driver_phone || "Not available"}</p>
+<p><b>Vehicle:</b> ${o.driver_vehicle || "Not available"}</p>
+
+<button onclick="showOtpInput('${o._id}')" 
+style="background:blue; margin-top:10px;">
+✅ Delivery Complete
+</button>
+
+<div id="otpBox_${o._id}" style="display:none; margin-top:10px;">
+    <input id="otp_${o._id}" placeholder="Enter OTP">
+    <button onclick="verifyOtp('${o._id}')">Submit OTP</button>
+</div>
+
+${o.driver_phone ? `
+<button onclick="callDriver('${o.driver_phone}')" 
+style="background:green; margin-top:10px;">
+📞 Call Driver
+</button>
+` : ""}
+${o.driver_lat && o.driver_lng ? `
+<button onclick="openLocation(${o.driver_lat}, ${o.driver_lng})"
+style="background:blue; margin-top:10px;">
+📍 Driver Location
+</button>
+` : ""}
+`;
+}
+else if(o.status === "completed"){
+    statusText = "🎉 Delivery Completed";
+    statusColor = "blue";
+}
+else if(o.status === "rejected"){
+    statusText = "❌ Rejected";
+    statusColor = "red";
+}
+else{
+    statusText = "⏳ Waiting for Driver";
+    statusColor = "orange";
+}
+
+// DISPLAY
+div.innerHTML+=`
+<div class="order">
+<p>📍 ${o.pickup} → ${o.drop}</p>
+<p style="color:${statusColor}; font-weight:bold;">${statusText}</p>
+${driverInfo}
+</div>`;
+});
+
+})
+.catch(()=>{
+document.getElementById("myOrders").innerText="Error loading ❌";
+});
+
+}
+
+// 📞 CALL FUNCTION
+function callDriver(phone){
+if(!phone){
+alert("Phone not available ❌");
+return;
+}
+window.location.href = "tel:" + phone;
+}
+
+// 📍 TRACK
+function openLocation(lat, lng){
+    window.open(`https://www.google.com/maps?q=${lat},${lng}`);
+}
+
+
+// AUTO REFRESH
+loadOrders();
+setInterval(loadOrders,300000);
+function showOtpInput(orderId){
+    document.getElementById("otpBox_"+orderId).style.display = "block";
+}
+function verifyOtp(orderId){
+    const otp = document.getElementById("otp_"+orderId).value;
+
+    fetch("http://localhost:5000/verify-otp", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({ order_id: orderId, otp })
+    })
+    .then(res=>res.json())
+    .then(data=>{
+        if(data.success){
+            alert("Delivery Completed 🎉");
+            loadOrders();
+        } else {
+            alert("Wrong OTP ❌");
+        }
+    });
+}
+
+/* MAP */
+var map = L.map('map').setView([11.1271, 78.6569], 7);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+}).addTo(map);
+
+  var driverMarker = L.marker([0, 0]).addTo(map);
+  function updateMap(lat, lng){
+    driverMarker.setLatLng([lat, lng]);
+    map.setView([lat, lng], 13);
+}
+
+   // 🔥 PUT DRIVER ID HERE
+   if(o.driver_id){
+    localStorage.setItem("driverId", o.driver_id);
+}
+
+function updateLocation() {
+    const driverId = localStorage.getItem("driverId");
+
+    fetch(`http://localhost:5000/get-location/${driverId}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data && data.lat && data.lng) {
+                driverMarker.setLatLng([data.lat, data.lng]);
+                map.setView([data.lat, data.lng], 13);
+            }
+        });
+}
+
+setInterval(updateLocation, 3000);
+
+</script>
+

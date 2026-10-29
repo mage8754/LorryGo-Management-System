@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LorryGo</title>
+
+<style>
+body {
+    margin: 0;
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(-45deg, #0f172a, #1e293b, #0ea5e9, #1e293b);
+    background-size: 400% 400%;
+    animation: gradientMove 10s ease infinite;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Background animation */
+@keyframes gradientMove {
+    0% {background-position: 0% 50%;}
+    50% {background-position: 100% 50%;}
+    100% {background-position: 0% 50%;}
+}
+
+/* Main Card */
+.container {
+    text-align: center;
+    color: white;
+    backdrop-filter: blur(20px);
+    background: rgba(255,255,255,0.1);
+    padding: 50px;
+    border-radius: 20px;
+    box-shadow: 0 15px 50px rgba(0,0,0,0.4);
+}
+
+/* Title */
+h1 {
+    font-size: 45px;
+    margin-bottom: 10px;
+}
+
+.sub {
+    color: #ddd;
+    margin-bottom: 30px;
+}
+
+/* Buttons */
+.btn {
+    width: 250px;
+    padding: 15px;
+    margin: 12px;
+    border: none;
+    border-radius: 10px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.3s;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Glow effect */
+.btn::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: rgba(255,255,255,0.3);
+    transition: 0.4s;
+}
+
+.btn:hover::before {
+    left: 100%;
+}
+
+/* Customer */
+.customer {
+    background: linear-gradient(45deg, #22c55e, #16a34a);
+    color: white;
+}
+
+.customer:hover {
+    transform: scale(1.05);
+}
+
+/* Driver */
+.driver {
+    background: linear-gradient(45deg, #f59e0b, #d97706);
+    color: white;
+}
+
+.driver:hover {
+    transform: scale(1.05);
+}
+
+/* Icon */
+.icon {
+    margin-right: 8px;
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>🚚 LorryGo</h1>
+    <p class="sub">Smart Transport Booking Platform</p>
+
+    <button class="btn customer" onclick="goCustomer()">
+        👤 Customer Login
+    </button>
+
+    <br>
+
+    <button class="btn driver" onclick="goDriver()">
+        🚚 Driver Login
+    </button>
+
+</div>
+
+<script>
+function goCustomer(){
+    window.location.href = "customer-login.html";
+}
+
+function goDriver(){
+    window.location.href = "driver-login.html";
+}
+</script>
+
+</body>
+</html>
